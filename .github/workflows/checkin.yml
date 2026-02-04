@@ -28,13 +28,19 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable
         
-    - name: Run auto checkin
+    - name: Run auto checkin with Retry
+      # --- 关键改动：增加重试插件 ---
+      uses: nick-fields/retry@v3
+      with:
+        timeout_minutes: 10    # 每次尝试最长10分钟
+        max_attempts: 3       # 失败后自动重跑，最多3次
+        retry_on: error       # 只要报错就重试
+        command: python leaflow_checkin.py
       env:
+        # 保持你原来的变量配置不变
         LEAFLOW_ACCOUNTS: ${{ secrets.LEAFLOW_ACCOUNTS }}
         LEAFLOW_EMAIL: ${{ secrets.LEAFLOW_EMAIL }}
         LEAFLOW_PASSWORD: ${{ secrets.LEAFLOW_PASSWORD }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         GITHUB_ACTIONS: true
-      run: |
-        python leaflow_checkin.py
