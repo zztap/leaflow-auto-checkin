@@ -31,30 +31,36 @@ class LeaflowAutoCheckin:
         self.setup_driver()
 
     def setup_driver(self):
-        """设置优化后的Chrome驱动"""
+        """深度优化版的驱动配置，专门解决渲染器超时问题"""
         chrome_options = Options()
         
-        # --- 核心改进：优化加载速度 ---
-        # eager 模式：只要主要内容出来了就停止等待，不加载慢悠悠的广告和无关脚本
-        chrome_options.page_load_strategy = 'eager' 
-        
+        # 1. 基础无头模式配置
         if os.getenv('GITHUB_ACTIONS'):
-            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--headless=new') # 使用较新的无头模式
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
             chrome_options.add_argument('--window-size=1920,1080')
 
-        # --- 核心改进：防爬虫伪装 ---
+        # 2. 针对 "Timed out receiving message from renderer" 的专项优化
+        # 屏蔽一些可能导致渲染卡顿的特性
+        chrome_options.add_argument('--disable-renderer-backgrounding')
+        chrome_options.add_argument('--disable-backgrounding-occluded-windows')
+        chrome_options.add_argument('--disable-ipc-flooding-protection')
+        
+        # 3. 策略调整：将 eager 改回 normal，有时候 eager 会导致渲染器通讯步调不一致
+        chrome_options.page_load_strategy = 'normal' 
+
+        # 4. 伪装升级
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
-        # 模拟真实用户代理
-        chrome_options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        chrome_options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36')
         
         self.driver = webdriver.Chrome(options=chrome_options)
-        # 彻底抹除 webdriver 痕迹
-        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
+        # 5. 设置脚本超时，防止死等
+        self.driver.set_script_timeout(20)
 
     def checkin(self):
         """执行签到流程 (带自动刷新重试)"""
@@ -172,3 +178,4 @@ if __name__ == "__main__":
     manager = MultiAccountManager()
     manager.run_all()
     print("任务执行完毕")
+
