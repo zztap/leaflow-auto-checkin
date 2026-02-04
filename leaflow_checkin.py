@@ -152,30 +152,60 @@ class LeaflowAutoCheckin:
             if self.driver:
                 self.driver.quit()
 
-# --- 多账号管理部分 ---
+# --- 请把代码文件最底部的 MultiAccountManager 类及之后的内容替换为以下内容 ---
+
 class MultiAccountManager:
     def __init__(self):
         self.accounts = self.load_accounts()
 
     def load_accounts(self):
+        # 优先读取新变量 LEAFLOW_ACCOUNTS
         accounts_str = os.getenv('LEAFLOW_ACCOUNTS', '').strip()
-        if not accounts_str:
-            raise ValueError("未配置 LEAFLOW_ACCOUNTS 变量")
+        if accounts_str:
+            pairs = [p.strip() for p in accounts_str.split(',')]
+            return [p.split(':', 1) for p in pairs if ':' in p]
         
-        pairs = [p.strip() for p in accounts_str.split(',')]
-        return [p.split(':', 1) for p in pairs if ':' in p]
+        # 兼容旧变量
+        old_email = os.getenv('LEAFLOW_EMAIL', '').strip()
+        old_pwd = os.getenv('LEAFLOW_PASSWORD', '').strip()
+        if old_email and old_pwd:
+            return [[old_email, old_pwd]]
+            
+        logger.error("未找到账号配置！请在 Secrets 中配置 LEAFLOW_ACCOUNTS")
+        return []
 
     def run_all(self):
-        results = []
+        print("="*30)
+        print("🚀 开始执行多账号签到任务")
+        print("="*30)
+        
         for email, pwd in self.accounts:
-            bot = LeaflowAutoCheckin(email, pwd)
-            success, msg, bal = bot.run()
-            results.append((email, success, msg))
-            time.sleep(5) # 账号间间隔
-        return results
+            # 隐藏密码日志，保护隐私
+            safe_email = email[:3] + "***" + email.split('@')[-1]
+            print(f"\n👤 正在处理账号: {safe_email}")
+            
+            try:
+                bot = LeaflowAutoCheckin(email, pwd)
+                success, msg, bal = bot.run()
+                
+                # --- 这里是关键：把结果打印出来 ---
+                if success:
+                    print(f"✅ 签到结果: {msg}")
+                    print(f"💰 当前余额: {bal}")
+                else:
+                    print(f"❌ 失败原因: {msg}")
+            except Exception as e:
+                print(f"💥 发生未知错误: {e}")
+            
+            print("-" * 20)
+            time.sleep(5) # 账号间休息一下
 
 if __name__ == "__main__":
     manager = MultiAccountManager()
+    if not manager.accounts:
+        print("❌ 未检测到账号，请检查 Github Secrets 配置")
+        exit(1)
+        
     manager.run_all()
-    print("任务执行完毕")
+    print("\n🏁 所有任务执行完毕")
 
