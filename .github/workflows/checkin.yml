@@ -2,13 +2,12 @@ name: Leaflow Auto Checkin
 
 on:
   schedule:
-    - cron: '0 1 * * *' # 每天UTC时间01:00运行（北京时间09:00）
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 1 * * *'
+  workflow_dispatch:
 
 jobs:
   checkin:
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -20,27 +19,24 @@ jobs:
         
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install selenium requests
         
-    - name: Install Chrome
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-        
-    - name: Run auto checkin with Retry
-      # --- 关键改动：增加重试插件 ---
+    - name: Run auto checkin
       uses: nick-fields/retry@v3
       with:
-        timeout_minutes: 10    # 每次尝试最长10分钟
-        max_attempts: 3       # 失败后自动重跑，最多3次
-        retry_on: error       # 只要报错就重试
+        timeout_minutes: 10
+        max_attempts: 3
         command: python leaflow_checkin.py
       env:
-        # 保持你原来的变量配置不变
         LEAFLOW_ACCOUNTS: ${{ secrets.LEAFLOW_ACCOUNTS }}
         LEAFLOW_EMAIL: ${{ secrets.LEAFLOW_EMAIL }}
         LEAFLOW_PASSWORD: ${{ secrets.LEAFLOW_PASSWORD }}
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         GITHUB_ACTIONS: true
+
+    - name: 上传调试截图
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-screenshots
+        path: "*.png"
+        retention-days: 3
