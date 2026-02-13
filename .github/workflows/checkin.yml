@@ -2,7 +2,7 @@ name: Leaflow Auto Checkin
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '50 19 * * *'
   workflow_dispatch:
 
 jobs:
